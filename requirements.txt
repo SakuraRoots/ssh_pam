@@ -1,0 +1,6 @@
+django
+django-netfields
+paramiko==2.0.2
+ldap3
+passlib
+hvac

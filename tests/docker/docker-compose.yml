@@ -1,0 +1,33 @@
+
+ssh:
+  build: ./openssh
+  hostname: ssh
+
+postgres:
+  image: postgres
+  hostname: postgres
+  environment:
+    - POSTGRES_PASSWORD=${DB_PASSWD}
+    - POSTGRES_USER=${DB_USER}
+    - POSTGRES_DB=${DB_DATABASE}
+  volumes:
+   - /tmp/.docker-vols/postgres/data:/var/lib/postgresql/data
+
+ldap:
+  image: osixia/openldap
+  hostname: ldap
+  environment:
+    - LDAP_ADMIN_PASSWORD=${LDAP_PASSWD}
+    - LDAP_BASE_DN=${LDAP_BASEDN}
+  volumes:
+    - /tmp/.docker-vols/ldap/database:/var/lib/ldap
+    - /tmp/.docker-vols/ldap/config:/etc/ldap/slapd.d
+
+
+ldap-admin:
+  image: osixia/phpldapadmin
+  hostname: ldap-admin
+  links:
+    - ldap
+  environment:
+    - PHPLDAPADMIN_LDAP_HOSTS=ldap
