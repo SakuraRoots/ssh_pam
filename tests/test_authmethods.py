@@ -1,12 +1,12 @@
+import os
+
 from django.test import TestCase
 
 from ssh_pam.auth import LDAPAuthMethod
 from ssh_pam.ui.wui.models import LDAPAuthenticationMethod, AuthenticationMethod
 
-import os
 
 class TestLDAPAuthMethod(TestCase):
-
     def setUp(self):
         import tests.init_env
 
@@ -19,11 +19,11 @@ class TestLDAPAuthMethod(TestCase):
 
         auth = AuthenticationMethod.objects.create(name='test ldap', enabled=True)
         self.ldapAuth = LDAPAuthenticationMethod.objects.create(
-            auth=                auth,
-            conn_uri=       self.LDAP_URL,
-            base_dn=        self.LDAP_BASEDN,
-            bind_user=      self.LDAP_USER,
-            bind_passwd=    self.LDAP_PASSWD
+            auth=auth,
+            conn_uri=self.LDAP_URL,
+            base_dn=self.LDAP_BASEDN,
+            bind_user=self.LDAP_USER,
+            bind_passwd=self.LDAP_PASSWD
         )
 
     def test_authenticate_failure_false_user(self):

@@ -1,5 +1,4 @@
 class User:
-
     def __init__(self, username, realm, groups=[]):
         self.username = username
         self.groups = groups

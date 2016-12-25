@@ -4,12 +4,12 @@ import ldap3
 from ldap3.core.exceptions import *
 
 from ssh_pam.auth import AuthenticationMethod
-from ssh_pam.ui.wui.models import LDAPAuthenticationMethod
+from ssh_pam.model import LDAPAuthenticationMethod
 
 log = logging.getLogger("ssh-pam.auth.ldap")
 
-class LDAPAuthMethod(AuthenticationMethod):
 
+class LDAPAuthMethod(AuthenticationMethod):
     def __init__(self, options):
         """
         :type options: LDAPAuthenticationMethod
@@ -31,7 +31,7 @@ class LDAPAuthMethod(AuthenticationMethod):
 
         AuthenticationMethod.__init__(self, options.conn_uri)
 
-    def authenticate(self,user,passwd):
+    def authenticate(self, user, passwd):
         if not self._enabled:
             log.error("authentication request for disabled authentication backend")
             return None
@@ -64,7 +64,6 @@ class LDAPAuthMethod(AuthenticationMethod):
                 pass
 
         return None
-
 
     def _find_user_dn(self, user, conn):
         assert self._enabled

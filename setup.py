@@ -9,8 +9,10 @@ setup(
     author='rsrdesarrollo',
     author_email='rsrdesarrollo@gmail.com',
     description='',
-    requires = [
+    requires=[
         'paramiko==2.0.2', 'ldap3', 'passlib',
-        'hvac', 'django', 'django-netfields'
+        'hvac', 'django', 'django-netfields',
+        'djangorestframework', 'markdown',
+        'django-filter'
     ]
 )

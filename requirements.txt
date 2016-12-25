@@ -4,3 +4,6 @@ paramiko==2.0.2
 ldap3
 passlib
 hvac
+djangorestframework
+markdown
+django-filter

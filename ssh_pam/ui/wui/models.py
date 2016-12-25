@@ -1,35 +1,60 @@
-from django.db import models
 from django.core import validators
+from django.db import models
 from netfields import CidrAddressField
 
+from ssh_pam.exceptions import *
 
-class EnabledModel(models.Model):
-    enabled = models.BooleanField(default=False)
 
-    @staticmethod
-    def all_enabled():
-        return AuthenticationMethod.objects.filter(enabled=True)
+def can_be_disabled(cls):
+    @classmethod
+    def all_enabled(cls):
+        return cls.objects.filter(enabled=True)
 
-    class Meta:
-        abstract = True
+    def __str__(self):
+        return "{}: {}".format(cls.__old__str__(self), ('DISABLED', 'ENABLED')[self.enabled])
+
+    models.BooleanField(default=False).contribute_to_class(cls, 'enabled')
+
+    cls.__old__str__ = cls.__str__
+    cls.__str__ = __str__
+
+    return cls
+
+
+def inherit_disabled(parent_attr):
+    def decorator(cls):
+        @classmethod
+        def all_enabled(cls):
+            return cls.objects.filter(**{
+                parent_attr + "__enabled": True
+            })
+
+        cls.all_enabled = all_enabled
+
+        return cls
+
+    return decorator
+
 
 """
 AUTHENTICATION METHODS
 """
 
-class AuthenticationMethod(EnabledModel):
-    enabled = models.BooleanField(default=False)
+
+@can_be_disabled
+class AuthenticationMethod(models.Model):
     name = models.CharField(max_length=128)
 
     def __str__(self):
-        return "{}: {}".format(self.name, ('DISABLED', 'ENABLED')[self.enabled])
+        return self.name
 
     @staticmethod
     def all_enabled():
         return AuthenticationMethod.objects.filter(enabled=True)
 
 
-class LocalFileAuthenticationMethod(EnabledModel):
+@inherit_disabled('auth')
+class LocalFileAuthenticationMethod(models.Model):
     auth = models.OneToOneField(
         AuthenticationMethod,
         on_delete=models.CASCADE,
@@ -41,12 +66,14 @@ class LocalFileAuthenticationMethod(EnabledModel):
         return "{} [file://{}]".format(self.auth, self.file_path)
 
 
-class LDAPAuthenticationMethod(EnabledModel):
+@inherit_disabled('auth')
+class LDAPAuthenticationMethod(models.Model):
     auth = models.OneToOneField(
         AuthenticationMethod,
         on_delete=models.CASCADE,
         primary_key=True
     )
+
     conn_uri = models.CharField(
         max_length=255,
         validators=[validators.URLValidator(schemes=["ldaps", "ldap"])]
@@ -67,12 +94,15 @@ class LDAPAuthenticationMethod(EnabledModel):
 RULES
 """
 
+
 class HostGroup(models.Model):
     name = models.CharField(max_length=128)
     cidr = CidrAddressField()
+    port = models.SmallIntegerField(default=22)
 
     def __str__(self):
         return "{}: {}".format(self.name, self.cidr.exploded)
+
 
 class TargetAcount(models.Model):
     name = models.CharField(max_length=128)
@@ -86,17 +116,18 @@ class TargetAcount(models.Model):
 class GroupMapping(models.Model):
     name = models.CharField(max_length=128)
     group = models.CharField(unique=True, max_length=255)
-    targets = models.ManyToManyField(TargetAcount)
+    target = models.ForeignKey(TargetAcount)
 
     def __str__(self):
         return "{}: {} - [{}]".format(
             self.name,
             self.group,
-            ','.join((str(x) for x in self.targets.all()))
+            self.target
         )
 
 
-class Rule(EnabledModel):
+@can_be_disabled
+class Rule(models.Model):
     name = models.CharField(max_length=128)
     hosts = models.ManyToManyField(HostGroup)
     groups = models.ManyToManyField(GroupMapping)
@@ -111,11 +142,16 @@ class Rule(EnabledModel):
         )
 
     @staticmethod
-    def get_matching_rule(target_ip, user_groups):
-        if isinstance(user_groups, str):
-            user_groups = [user_groups]
-
+    def get_matching_rule(target_ip):
         return Rule.objects.filter(
-            hosts__cidr__net_contains_or_equals= target_ip,
-            groups__group__in= user_groups
+            hosts__cidr__net_contains_or_equals=target_ip
         ).order_by('-preference').first()
+
+    def get_target_credentials(self, groups, target_ip):
+        h = self.hosts.filter(cidr__net_contains_or_equals=target_ip).first()
+        g = self.groups.filter(group__in=groups).first()
+
+        if not g:
+            raise NoGroupMappingException()
+
+        return (g.target.username, g.target.passwd, h.port)
