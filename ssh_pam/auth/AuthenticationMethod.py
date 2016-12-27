@@ -1,9 +1,10 @@
-import logging
+from ssh_pam.core.log import Logger
+
+log = Logger.getLogger('auth')
+
 from abc import ABCMeta, abstractmethod
 
 from ssh_pam.model import User
-
-log = logging.getLogger("ssh-pam.auth")
 
 
 class AuthenticationMethod(metaclass=ABCMeta):
@@ -13,7 +14,7 @@ class AuthenticationMethod(metaclass=ABCMeta):
 
     @abstractmethod
     def authenticate(self, user, passwd):
-        raise NotImplementedError()
+        pass
 
     def _allow_user(self, username, groups=[]):
         return User(username, self.realm, groups)

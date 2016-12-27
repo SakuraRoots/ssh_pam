@@ -2,7 +2,7 @@ from django.core import validators
 from django.db import models
 from netfields import CidrAddressField
 
-from ssh_pam.exceptions import *
+from ssh_pam.core.exceptions import *
 
 
 def can_be_disabled(cls):

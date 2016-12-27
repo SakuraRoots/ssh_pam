@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+from ssh_pam.core.config import Config
+from ssh_pam.core.log import Logger
+
+log = Logger.getLogger()
 
 import socket
 import sys
@@ -7,22 +10,10 @@ from binascii import hexlify
 import paramiko
 from paramiko.py3compat import u
 
-import ssh_pam
 from ssh_pam.auth import LDAPAuthMethod, LocalFileAuthMethod
 from ssh_pam.model import LDAPAuthenticationMethod, LocalFileAuthenticationMethod
-
-
-
-from ssh_pam.config import Config
-
-import logging
-
-logging.basicConfig(format=Config.LOG_FORMAT)
-log = logging.getLogger("ssh-pam")
-log.setLevel(logging.DEBUG)
-
-
-# paramiko.util.log_to_file('demo_server.log')
+from ssh_pam.server import SSHSession
+from ssh_pam.core import EventManager
 
 
 class SSHProxyServer:
@@ -30,6 +21,14 @@ class SSHProxyServer:
         self._bind_port = Config.BIND_PORT
         self._bind_addr = Config.BIND_ADDRESS
         self._running = True
+
+        EventManager().on_stop(self.stop)
+
+    def stop(self):
+        self._running = False
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM)\
+            .connect(('localhost', self._bind_port))
+
 
     def run(self):
         host_key = paramiko.RSAKey(filename=Config.HOST_KEY_FILE)
@@ -44,7 +43,7 @@ class SSHProxyServer:
 
             log.info('Listening for connection on %s:%d', Config.BIND_ADDRESS, Config.BIND_PORT)
         except Exception as e:
-            log.exception('*** Bind error.')
+            log.fatal('Bind error. %s', e)
             sys.exit(1)
 
         while self._running:
@@ -52,11 +51,15 @@ class SSHProxyServer:
                 sock.listen(100)
                 client, addr = sock.accept()
             except Exception as e:
-                log.exception('*** Listen/accept failed.')
-                sys.exit(1)
+                log.exception('*** Listen/accept failed.', e)
+                sys.exit(-1)
 
-            work = ssh_pam.server.SSHSession(auth_methods, client, host_key)
-            work.start()
+            if self._running:
+                work = SSHSession(auth_methods, client, host_key)
+                work.start()
+
+        log.info("Closing service. Wait for all current connections to terminate.")
+        sock.close()
 
     def _init_auth_methods(self):
         auth_methods = dict()

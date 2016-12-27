@@ -1,12 +1,13 @@
-import logging
+from ssh_pam.core.log import Logger
+
+log = Logger.getLogger('auth.file')
+
 import os
 
 from passlib.apache import HtpasswdFile
 
 from ssh_pam.auth import AuthenticationMethod
 from ssh_pam.model import LocalFileAuthenticationMethod
-
-log = logging.getLogger("ssh-pam.auth.file")
 
 
 class LocalFileAuthMethod(AuthenticationMethod):

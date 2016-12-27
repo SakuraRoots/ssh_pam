@@ -1,4 +1,7 @@
-import logging
+from ssh_pam.core.log import Logger
+
+log = Logger.getLogger('session')
+
 import select
 import socket
 import threading
@@ -6,12 +9,32 @@ import threading
 import paramiko
 from paramiko.py3compat import u
 
-from ssh_pam.exceptions import *
+from ssh_pam.core.exceptions import *
 from ssh_pam.model import Rule
-from ssh_pam.config import Config
+from ssh_pam.core.config import Config
+from ssh_pam.core import EventManager
 
-log = logging.getLogger("ssh-pam.session")
+from enum import Enum, unique
 
+def run_statistics(func):
+    def decorator(self, *args, **kwargs):
+        try:
+            decorator._runing.add(self)
+            func(self, *args, **kwargs)
+            decorator._runing.remove(self)
+        except:
+            raise
+
+    decorator._runing = set()
+
+    return decorator
+
+@unique
+class SSHSessionStatus(Enum):
+    CONNECTION_OPEN=1
+    AUTH_PENDING=2
+    CHANNEL_OPEN=3
+    SESSION_OPEN=4
 
 class SSHSession(paramiko.ServerInterface, threading.Thread):
     """
@@ -25,12 +48,15 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         :type socket: socket.socket
         :type host_key: paramiko.RSAKey
         """
+        threading.Thread.__init__(self)
+
+        self.daemon = True
         self.target_server = None
         self.username = None
         self.user = None
         self.rule = None
 
-        self._trans = None
+        self._status = SSHSessionStatus.CONNECTION_OPEN
         self._event_session_open = threading.Event()
 
         self._server_conn = None
@@ -42,51 +68,76 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         self._host_key = host_key
         self._auth_methods = auth_methods
         self._socket = socket
+        self._running = True
 
-        threading.Thread.__init__(self)
+        EventManager().on_stop(self.stop)
+
+    def __str__(self):
+        return "user: {} -> ({})@{}\t STATUS:{}".format(
+            self.username,
+            self.user,
+            self.target_server,
+            self.status
+        )
+
+    @property
+    def status(self):
+        return self._status.name
 
     def _load_tranport(self):
-        self._trans = paramiko.Transport(self._socket)
-        self._trans.local_version = Config.SSH_BANNER
+        transport = paramiko.Transport(self._socket)
+        transport.local_version = Config.SSH_BANNER
 
         try:
-            self._trans.load_server_moduli()
+            transport.load_server_moduli()
         except:
             log.warning('Failed to load moduli. group-exchange key negotiation will not be suported')
 
-        self._trans.add_server_key(self._host_key)
+        transport.add_server_key(self._host_key)
+
         try:
-            self._trans.start_server(server=self)
+            transport.start_server(server=self)
         except paramiko.SSHException as ex:
             log.error('SSH negotiation failed for client %s. %s', self._client_addr, ex)
-            raise
 
-    def run(self):
-        try:
-            self._load_tranport()
-
-            # wait for auth
-            chan = self._trans.accept()
-            if chan is None:
-                log.error('No channel oppened for user %s from %s.', self.username, self._client_addr)
-                return
-
-            self._event_session_open.wait(10)
-            if not self._event_session_open.is_set():
-                log.error('Client %s never asked for a pty.', self.user)
-                return
-
-        except Exception as e:
-            log.exception('*** Uncaught exception.')
             try:
-                self._trans.close()
+                transport.close()
             except Exception:
                 pass
-            raise
+
+            return None
+
+        self._status = SSHSessionStatus.AUTH_PENDING
+        return transport.accept()
+
+    def stop(self):
+        self._running = False
+        try:
+            self._client_channel.send("\n\rBye! closing channel from remote host\n\r")
+            self._client_channel.close()
+            self._server_channel.close()
+        except:
+            pass
+
+    @run_statistics
+    def run(self):
+        chan = self._load_tranport()
+        if chan is None:
+            log.error('No channel oppened for user %s from %s.', self.username, self._client_addr)
+            return
+        self._status = SSHSessionStatus.CHANNEL_OPEN
+
+        self._event_session_open.wait(10)
+        if not self._event_session_open.is_set():
+            log.error('Client %s never asked for a pty.', self.user)
+            return
+
+        self._status = SSHSessionStatus.SESSION_OPEN
 
         srv = self._server_channel
         cli = self._client_channel
-        while True:
+
+        while self._running:
             r, _, _ = select.select([cli, srv], [], [])
 
             if cli in r:
@@ -207,3 +258,13 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
 
     def check_channel_direct_tcpip_request(self, chanid, origin, destination):
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
+
+    @staticmethod
+    def print_stadistics():
+        log.info("STADISTICS: connections: %d", len(SSHSession.run._runing))
+
+        for conn in SSHSession.run._runing:
+            log.info("STADISTICS: session %s", conn)
+
+
+EventManager().on_print_stats(SSHSession.print_stadistics)

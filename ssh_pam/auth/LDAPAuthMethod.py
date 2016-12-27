@@ -1,12 +1,12 @@
-import logging
+from ssh_pam.core.log import Logger
+
+log = Logger.getLogger("auth.ldap")
 
 import ldap3
 from ldap3.core.exceptions import *
 
 from ssh_pam.auth import AuthenticationMethod
 from ssh_pam.model import LDAPAuthenticationMethod
-
-log = logging.getLogger("ssh-pam.auth.ldap")
 
 
 class LDAPAuthMethod(AuthenticationMethod):
