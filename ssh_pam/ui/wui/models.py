@@ -1,5 +1,8 @@
 from django.core import validators
 from django.db import models
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+
 from netfields import CidrAddressField
 
 from ssh_pam.core.exceptions import *
@@ -17,6 +20,7 @@ def can_be_disabled(cls):
 
     cls.__old__str__ = cls.__str__
     cls.__str__ = __str__
+    cls.all_enabled = all_enabled
 
     return cls
 
@@ -44,23 +48,28 @@ AUTHENTICATION METHODS
 @can_be_disabled
 class AuthenticationMethod(models.Model):
     name = models.CharField(max_length=128)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
 
     def __str__(self):
         return self.name
 
-    @staticmethod
-    def all_enabled():
-        return AuthenticationMethod.objects.filter(enabled=True)
-
+    class Meta:
+        unique_together = ('content_type', 'object_id',)
 
 @inherit_disabled('auth')
 class LocalFileAuthenticationMethod(models.Model):
-    auth = models.OneToOneField(
-        AuthenticationMethod,
-        on_delete=models.CASCADE,
-        primary_key=True
-    )
     file_path = models.CharField(max_length=255)
+
+    @property
+    def auth(self):
+        ctype = ContentType.objects.get_for_model(self.__class__)
+        try:
+            event = AuthenticationMethod.objects.get(content_type__pk=ctype.id, object_id=self.id)
+        except:
+            return None
+        return event
 
     def __str__(self):
         return "{} [file://{}]".format(self.auth, self.file_path)
@@ -68,12 +77,6 @@ class LocalFileAuthenticationMethod(models.Model):
 
 @inherit_disabled('auth')
 class LDAPAuthenticationMethod(models.Model):
-    auth = models.OneToOneField(
-        AuthenticationMethod,
-        on_delete=models.CASCADE,
-        primary_key=True
-    )
-
     conn_uri = models.CharField(
         max_length=255,
         validators=[validators.URLValidator(schemes=["ldaps", "ldap"])]
@@ -85,6 +88,15 @@ class LDAPAuthenticationMethod(models.Model):
     user_class = models.CharField(max_length=128, default="inetOrgPerson")
     group_class = models.CharField(max_length=128, default="posixGroup")
     member_attr = models.CharField(max_length=128, default="memberUid")
+
+    @property
+    def auth(self):
+        ctype = ContentType.objects.get_for_model(self.__class__)
+        try:
+            event = AuthenticationMethod.objects.get(content_type__pk=ctype.id, object_id=self.id)
+        except:
+            return None
+        return event
 
     def __str__(self):
         return "{} [{}]".format(self.auth, self.conn_uri)

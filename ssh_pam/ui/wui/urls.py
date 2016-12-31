@@ -17,5 +17,5 @@ from django.conf.urls import url
 import ssh_pam.ui.wui.views as views
 
 urlpatterns = [
-    url(r'', views.index, name='index')
+    url(r'^$', views.index, name='index')
 ]

@@ -43,7 +43,10 @@ def start_environment():
     os.environ["DB_HOST"] = get_ip_container(PS)
 
     print("postgres: runing on", os.environ["DB_HOST"])
-    print("ldap: runing on", os.environ["LDAP_URL"])
+    print("ldap: runing on", os.environ["LDAP_URL"],
+          "\n\t user: ",os.environ["LDAP_USER"],
+          "\n\t passwd: ", os.environ["LDAP_PASSWD"]
+    )
     print("phpldap admin: runing on https://{}".format(get_ip_container(LDAP_ADMIN)))
     print("ssh: runing on {}".format(get_ip_container(SSH)))
 
@@ -56,4 +59,18 @@ def stop_environment():
 
 
 if __name__ == '__main__':
-    start_environment()
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="ssh-pam docker env",
+        description="start and stop docker enviroment for tests"
+    )
+
+    parser.add_argument('action', choices=['up', 'down'])
+    opt = parser.parse_args(sys.argv[1:])
+
+    if opt.action == 'up':
+        start_environment()
+    elif opt.action == 'down':
+        stop_environment()
