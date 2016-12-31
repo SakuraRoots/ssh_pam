@@ -18,5 +18,6 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^api/v1/', include('core.api'))
+    url(r'^api/v1/', include('ssh_pam.api.api_urls')),
+    url(r'', include('ssh_pam.ui.wui.urls')),
 ]
