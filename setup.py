@@ -12,7 +12,7 @@ setup(
     requires=[
         'paramiko==2.0.2', 'ldap3', 'passlib',
         'hvac', 'django', 'django-netfields',
-        'djangorestframework', 'markdown',
-        'django-filter'
+        'djangorestframework', 'djangorestframework-jwt', 'markdown',
+        'django-filter', 'psycopg2'
     ]
 )

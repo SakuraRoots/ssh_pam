@@ -5,5 +5,7 @@ ldap3
 passlib
 hvac
 djangorestframework
+djangorestframework-jwt
 markdown
 django-filter
+psycopg2
