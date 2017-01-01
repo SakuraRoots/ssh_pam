@@ -25,21 +25,6 @@ def can_be_disabled(cls):
     return cls
 
 
-def inherit_disabled(parent_attr):
-    def decorator(cls):
-        @classmethod
-        def all_enabled(cls):
-            return cls.objects.filter(**{
-                parent_attr + "__enabled": True
-            })
-
-        cls.all_enabled = all_enabled
-
-        return cls
-
-    return decorator
-
-
 """
 AUTHENTICATION METHODS
 """
@@ -55,10 +40,14 @@ class AuthenticationMethod(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def all_enabled_type(cls, cls_type):
+        ctype = ContentType.objects.get_for_model(cls_type)
+        return cls.all_enabled().filter(content_type=ctype)
+
     class Meta:
         unique_together = ('content_type', 'object_id',)
 
-@inherit_disabled('auth')
 class LocalFileAuthenticationMethod(models.Model):
     file_path = models.CharField(max_length=255)
 
@@ -75,7 +64,6 @@ class LocalFileAuthenticationMethod(models.Model):
         return "{} [file://{}]".format(self.auth, self.file_path)
 
 
-@inherit_disabled('auth')
 class LDAPAuthenticationMethod(models.Model):
     conn_uri = models.CharField(
         max_length=255,

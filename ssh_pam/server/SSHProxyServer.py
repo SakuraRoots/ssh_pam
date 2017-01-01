@@ -11,7 +11,7 @@ import paramiko
 from paramiko.py3compat import u
 
 from ssh_pam.auth import LDAPAuthMethod, LocalFileAuthMethod
-from ssh_pam.model import LDAPAuthenticationMethod, LocalFileAuthenticationMethod
+from ssh_pam.model import LDAPAuthenticationMethod, LocalFileAuthenticationMethod, AuthenticationMethod
 from ssh_pam.server import SSHSession
 from ssh_pam.core import EventManager
 
@@ -58,15 +58,15 @@ class SSHProxyServer:
                 work = SSHSession(auth_methods, client, host_key)
                 work.start()
 
-        log.info("Closing service. Wait for all current connections to terminate.")
+        log.info("Closing service. All current connections will be terminated.")
         sock.close()
 
     def _init_auth_methods(self):
         auth_methods = dict()
-        for ldapAuth in LDAPAuthenticationMethod.all_enabled():
-            auth_methods[ldapAuth.auth.pk] = LDAPAuthMethod(ldapAuth)
+        for ldapAuth in AuthenticationMethod.all_enabled_type(LDAPAuthenticationMethod):
+            auth_methods[ldapAuth.pk] = LDAPAuthMethod(ldapAuth.content_object)
 
-        for fileAuth in LocalFileAuthenticationMethod.all_enabled():
-            auth_methods[fileAuth.auth.pk] = LocalFileAuthMethod(fileAuth)
+        for fileAuth in AuthenticationMethod.all_enabled_type(LocalFileAuthenticationMethod):
+            auth_methods[fileAuth.pk] = LocalFileAuthMethod(fileAuth.content_object)
 
         return auth_methods
