@@ -4,7 +4,7 @@ setup(
     name='ssh_pam',
     version='0.2',
     packages=['ssh_pam'],
-    url='https://github.com/rsrdesarrollo/ssh_pam',
+    url='https://github.com/SakuraRoots/ssh_pam',
     license='AGPLv3',
     author='rsrdesarrollo',
     author_email='rsrdesarrollo@gmail.com',
