@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ssh_pam',
-    version='0.1',
+    version='0.2',
     packages=['ssh_pam'],
     url='https://github.com/rsrdesarrollo/ssh_pam',
     license='AGPLv3',

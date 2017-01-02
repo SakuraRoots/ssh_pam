@@ -57,7 +57,7 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         self.user = None
         self.rule = None
 
-        self._status = SSHSessionStatus.CONNECTION_OPEN
+        self.status = SSHSessionStatus.CONNECTION_OPEN
         self._event_session_open = threading.Event()
 
         self._server_conn = None
@@ -78,12 +78,8 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
             self.username,
             self.user,
             self.target_server,
-            self.status
+            self.status.name
         )
-
-    @property
-    def status(self):
-        return self._status.name
 
     def _load_tranport(self):
         transport = paramiko.Transport(self._socket)
@@ -108,15 +104,15 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
 
             return None
 
-        self._status = SSHSessionStatus.AUTH_PENDING
+        self.status = SSHSessionStatus.AUTH_PENDING
         return transport.accept()
 
     def stop(self):
         self._running = False
-        self._status = SSHSessionStatus.SESSION_CLOSED
+        self.status = SSHSessionStatus.SESSION_CLOSED
         try:
             self._client_channel.send("\n\rBye! closing channel from remote host\n\r")
-            self._server_channel.send("\r~.")
+            self._server_channel.send("\r")
         except:
             pass
 
@@ -126,14 +122,14 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         if chan is None:
             log.error('No channel oppened for user %s from %s.', self.username, self._client_addr)
             return
-        self._status = SSHSessionStatus.CHANNEL_OPEN
+        self.status = SSHSessionStatus.CHANNEL_OPEN
 
         self._event_session_open.wait(10)
         if not self._event_session_open.is_set():
             log.error('Client %s never asked for a pty.', self.user)
             return
 
-        self._status = SSHSessionStatus.SESSION_OPEN
+        self.status = SSHSessionStatus.SESSION_OPEN
         recorder = FileSSHSessionRecorder(self)
 
         recorder.record_loop(
