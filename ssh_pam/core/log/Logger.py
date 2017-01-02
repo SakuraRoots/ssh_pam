@@ -21,7 +21,7 @@ class Logger(metaclass=Singleton):
         log = logging.getLogger(cls._LOGGER)
         logging.basicConfig(format=Config.LOG_FORMAT)
         lh = logging.FileHandler(filename=Config.LOG_FILE)
-        lh.setFormatter(logging.Formatter(Config.LOG_FORMAT))
+        lh.setFormatter(logging.Formatter(Config.LOG_FORMAT, style="{"))
         log.addHandler(lh)
         log.setLevel(Config.LOG_LEVEL)
 

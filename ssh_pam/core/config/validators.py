@@ -1,3 +1,15 @@
+def validate_directory(dirname):
+    import os
+    num_dir = len(__package__.split('.'))
+    PROJECT_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), *(['..'] * num_dir)))
+
+    if not os.path.isabs(dirname):
+        dirname = os.path.join(PROJECT_PATH, dirname)
+
+    dirname = os.path.normpath(dirname)
+
+    return dirname
+
 def validate_permissions_file(file_path, perm):
     import os
     num_dir = len(__package__.split('.'))

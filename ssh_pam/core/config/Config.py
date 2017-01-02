@@ -95,8 +95,16 @@ class ConfigLog:
     _SECTION = "LOG"
     _MANDATORY = False
 
+@list_attrs_keys
+class ConfigFileRecorder:
+    FILE_RECORD_PATH = ("logs/records/{date}/{user}", validators.validate_directory)
+    FILE_RECORD_NAME = "{datetime}_{target_user}@{target_ip}.{target_port}.log"
 
-class Config(ConfigProxy, ConfigLdap, ConfigLog):
+    _SECTION = "FILE_RECORDER"
+    _MANDATORY = False
+
+
+class Config(ConfigProxy, ConfigLdap, ConfigLog, ConfigFileRecorder):
     @classmethod
     def reload_config(cls):
         import os

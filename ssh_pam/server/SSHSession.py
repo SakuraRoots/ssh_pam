@@ -2,19 +2,19 @@ from ssh_pam.core.log import Logger
 
 log = Logger.getLogger('session')
 
-import select
 import socket
 import threading
 
 import paramiko
-from paramiko.py3compat import u
 
-from ssh_pam.core.exceptions import *
-from ssh_pam.model import Rule
-from ssh_pam.core.config import Config
 from ssh_pam.core import EventManager
+from ssh_pam.core.config import Config
+from ssh_pam.core.exceptions import *
+from ssh_pam.core.status import SSHSessionStatus
 
-from enum import Enum, unique
+from ssh_pam.model import Rule
+from ssh_pam.server.recorders import FileSSHSessionRecorder
+
 
 def run_statistics(func):
     def decorator(self, *args, **kwargs):
@@ -29,12 +29,9 @@ def run_statistics(func):
 
     return decorator
 
-@unique
-class SSHSessionStatus(Enum):
-    CONNECTION_OPEN=1
-    AUTH_PENDING=2
-    CHANNEL_OPEN=3
-    SESSION_OPEN=4
+
+
+
 
 class SSHSession(paramiko.ServerInterface, threading.Thread):
     """
@@ -50,8 +47,12 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         """
         threading.Thread.__init__(self)
 
-        self.daemon = True
+        self.daemon = False
+
         self.target_server = None
+        self.target_user = None
+        self.target_port = None
+
         self.username = None
         self.user = None
         self.rule = None
@@ -112,10 +113,10 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
 
     def stop(self):
         self._running = False
+        self._status = SSHSessionStatus.SESSION_CLOSED
         try:
             self._client_channel.send("\n\rBye! closing channel from remote host\n\r")
-            self._client_channel.close()
-            self._server_channel.close()
+            self._server_channel.send("\r~.")
         except:
             pass
 
@@ -133,28 +134,15 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
             return
 
         self._status = SSHSessionStatus.SESSION_OPEN
+        recorder = FileSSHSessionRecorder(self)
 
-        srv = self._server_channel
-        cli = self._client_channel
+        recorder.record_loop(
+            srv_channel=self._server_channel,
+            cli_channel=self._client_channel
+        )
 
-        while self._running:
-            r, _, _ = select.select([cli, srv], [], [])
-
-            if cli in r:
-                x = u(cli.recv(1024))
-                if len(x) == 0:
-                    srv.close()
-                    break
-
-                srv.send(x)
-
-            if srv in r:
-                x = u(srv.recv(1024))
-                if len(x) == 0:
-                    cli.close()
-                    break
-
-                cli.send(x)
+        self._server_channel.close()
+        self._client_channel.close()
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -201,17 +189,15 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         """
         :type channel: paramiko.channel.Channel
         """
-        target_user = None
-
         try:
-            target_user, target_passwd, target_port = self.rule.get_target_credentials(
+            self.target_user, target_passwd, self.target_port = self.rule.get_target_credentials(
                 self.user.groups,
                 self.target_server
             )
 
             self._server_conn = paramiko.SSHClient()
             self._server_conn.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self._server_conn.connect(self.target_server, target_port, target_user, target_passwd)
+            self._server_conn.connect(self.target_server, self.target_port, self.target_user, target_passwd)
             self._server_channel = self._server_conn.invoke_shell(term, width, height, pixelwidth, pixelheight)
             self._client_channel = channel
 
@@ -221,7 +207,7 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         except paramiko.AuthenticationException as ex:
             log.error("Client %s failed to authenticate on second tranche to %s@%s",
                       self.user,
-                      target_user,
+                      self.target_user,
                       self.target_server
                       )
             channel.close()
@@ -232,7 +218,7 @@ class SSHSession(paramiko.ServerInterface, threading.Thread):
         except paramiko.SSHException:
             log.error("Client %s failed to create shell on second tranche to %s@%s",
                       self.user,
-                      target_user,
+                      self.target_user,
                       self.target_server
                       )
         except NoGroupMappingException:

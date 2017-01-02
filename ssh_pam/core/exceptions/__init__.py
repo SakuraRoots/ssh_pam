@@ -4,3 +4,6 @@ class SSHPAMExcepcion(Exception):
 
 class NoGroupMappingException(SSHPAMExcepcion):
     pass
+
+class UnableToRecordSessionException(SSHPAMExcepcion):
+    pass
