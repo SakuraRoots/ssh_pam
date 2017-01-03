@@ -1,6 +1,6 @@
 django
 django-netfields
-paramiko==2.0.2
+paramiko
 ldap3
 passlib
 hvac

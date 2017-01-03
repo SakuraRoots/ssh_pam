@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import threading
+
 from ssh_pam.core.log import Logger
 from ssh_pam.core.config import Config
 from ssh_pam.core import EventManager
@@ -11,9 +13,10 @@ Logger.init_logging()
 em = EventManager()
 em.on_reload(lambda: Config.reload_config())
 
-
 if __name__ == '__main__':
     from ssh_pam.server import SSHProxyServer
     server = SSHProxyServer()
 
-    server.run()
+    main_thread = threading.Thread(target=server.serve_forever)
+    main_thread.start()
+    EventManager().on_stop(server.shutdown)

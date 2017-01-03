@@ -10,7 +10,7 @@ setup(
     author_email='rsrdesarrollo@gmail.com',
     description='',
     requires=[
-        'paramiko==2.0.2', 'ldap3', 'passlib',
+        'paramiko', 'ldap3', 'passlib',
         'hvac', 'django', 'django-netfields',
         'djangorestframework', 'djangorestframework-jwt', 'markdown',
         'django-filter', 'psycopg2'

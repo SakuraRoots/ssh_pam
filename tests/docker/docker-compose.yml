@@ -11,7 +11,9 @@ postgres:
     - POSTGRES_USER=${DB_USER}
     - POSTGRES_DB=${DB_DATABASE}
   volumes:
-   - /tmp/.docker-vols/postgres/data:/var/lib/postgresql/data
+   - /var/tmp/.docker-vols/postgres/data:/var/lib/postgresql/data
+  ports:
+    - "127.0.0.1:55432:5432"
 
 ldap:
   image: osixia/openldap
@@ -20,8 +22,10 @@ ldap:
     - LDAP_ADMIN_PASSWORD=${LDAP_PASSWD}
     - LDAP_BASE_DN=${LDAP_BASEDN}
   volumes:
-    - /tmp/.docker-vols/ldap/database:/var/lib/ldap
-    - /tmp/.docker-vols/ldap/config:/etc/ldap/slapd.d
+    - /var/tmp/.docker-vols/ldap/database:/var/lib/ldap
+    - /var/tmp/.docker-vols/ldap/config:/etc/ldap/slapd.d
+  ports:
+    - "127.0.0.1:3389:389"
 
 
 ldap-admin:
